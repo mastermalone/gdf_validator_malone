@@ -1,7 +1,5 @@
 #!/bin/bash
 CID=$1
-#GTYPE=$2
-#GDFV=$3
 HOME=~
 ASSETDIR=$2
 TESTLOCATION="Documents/Development/gdf_validator_malone/0.1"
@@ -11,14 +9,24 @@ Red='\033[0;31m'
 Green='\033[0;32m'
 Blue='\033[0;34m'
 normal='\e[0m'
+error_log_dir=$CID"_errors"
+inital_run=true
 
-#run this script before this line: if ! [[ -d "${HOME}/gdf_packets/" && -x "${HOME}/gdf_packets/" ]]; then of the build_game script in /usr/local/bin 
+#run this script after build_game has finished 
 function init_validation() {
-	default_path=default/path/to/source.txt
+	default_path="default/path/to/source.txt"
+	
+	if [[ -d $CID"_errors" ]];
+	then
+		echo "Removing $CID'_errors'"
+		rm -rf $CID"_errors"
+	fi
+	
 	validate_affirmation
 	validate_background
 	validate_gameplay
 	validate_instructions
+	validate_title
 }
 
 function validate_affirmation() {
@@ -29,6 +37,7 @@ function validate_affirmation() {
   targetLine=""
   frame_aff="_frame_Affirmation"
   required_object="lib._animation_Affirmation"
+  required_object_found=""
   occurance=0;
   cleanItem=""
   
@@ -70,13 +79,12 @@ function validate_affirmation() {
   	echo "No occurances of $required_object* were found in the affiration/animation.js file."
   else
   	echo "Found the required $required_object object"
-  	#exit with error code 101 which can be mapped to specified string not found in animation.js: $frame_aff
+  	required_object_found=true
   fi
     
   #Iterate through the long string to match the occurance of the affirmation string
   IFS=","
   for item in $targetLine; do
-  #for item in ${validationArray[@]}; do
   	if [[ "$item" =~ "$frame_aff" ]];
   	then
   		#Strip the characters after the ':' from the string that matches the frame_aff variable
@@ -92,13 +100,22 @@ function validate_affirmation() {
   done
   
   if [[ "${validationArray[@]}" == "" && "$referenced_obj_line" != "" ]];
-  then 
+  then
   	PASS_FAIL="PASSED"
   else
   	PASS_FAIL="FAILED"
+		make_error_log_dir
+  	if [[ "$required_object_found" == true ]];
+  	then
+  		#Reset the referenced_obj_line to an empty string so that it does not show up in the validation error .log file
+  		required_object=""
+  	fi
+  	
+		echo "The missing values from $CID/assets/SOURCE/animations/affirmation/animation.js are: ${validationArray[@]} $required_object" >> $error_log_dir"/error.log"
+		echo "The missing values from $CID/assets/SOURCE/animations/affirmation/animation.js are: ${validationArray[@]} $required_object"
   fi
   #Run acceptance function to raise an error if needed.  Create gdf_error.log file to print the error code and the the 
-  echo -e "VALIDATION FOR $CID/assets/SOURCE/animations/affirmation/animation.js HAS $PASS_FAIL\n"
+  echo -e "VALIDATION FOR $CID/assets/SOURCE/animations/affirmation/animation.js HAS $PASS_FAIL.\n"
 }
 
 function validate_background() {
@@ -119,12 +136,13 @@ function validate_background() {
 	if [[ "$required_line_obj" == "" ]];
 	then
 		PASS_FAIL="FAILED"
+		make_error_log_dir
+		echo "No occurances of $required_obj we found in $CID/assets/SOURCE/animations/background/animation.js" >> $error_log_dir"/error.log"
 		echo "No occurances of $required_obj we found in $CID/assets/SOURCE/animations/background/animation.js"
 	else
 		PASS_FAIL="PASSED"
 		#exit 102 Map to error message
 	fi
-	#echo "No occurances of $required_obj we found in background/animation.js.  "
 	echo -e "VALIDATION FOR $CID/assets/SOURCE/animations/background/animation.js HAS $PASS_FAIL\n"
 }
 
@@ -234,6 +252,8 @@ function validate_gameplay() {
 		PASS_FAIL="PASSED"
 	else
 		PASS_FAIL="FAILED"
+		make_error_log_dir
+		echo "The missing values from $CID/assets/SOURCE/animations/gameplay/animation.js are: ${validationArray[@]}" >> $error_log_dir"/error.log"
 		echo "The missing values from $CID/assets/SOURCE/animations/gameplay/animation.js are: ${validationArray[@]}"
 	fi
 	echo -e "VALIDATION FOR $CID/assets/SOURCE/animations/gameplay/animation.js has $PASS_FAIL\n"
@@ -275,7 +295,6 @@ function validate_instructions() {
 		then
 			echo "Found the instructions line:  The Array: ${validationArray[0]}"
 			target_line="$line"
-			#j=`expr $j + 1`
 		fi
 	done < "$fileName" 
 	
@@ -284,7 +303,6 @@ function validate_instructions() {
 	for item in $target_line; do
 		if [[ "$item" =~ "${validationArray[0]}" ]];
 		then
-			echo "Matches: $item"
 			target_item="$item"
 		fi
 	done
@@ -305,9 +323,63 @@ if [[ "${required_object_array[@]}" == "" && ${validationArray[@]} == "" ]];
 		PASS_FAIL="PASSED"
 	else
 		PASS_FAIL="FAILED"
+		make_error_log_dir
+		echo "These are the missing elements from $CID/assets/SOURCE/animations/instructions/animation.js: ${required_object_array[@]} ${validationArray[@]}" >> $error_log_dir"/error.log"
 		echo "These are the missing elements from $CID/assets/SOURCE/animations/instructions/animation.js: ${required_object_array[@]} ${validationArray[@]}"
 	fi
 	echo  -e "VALIDATION FOR $CID/assets/SOURCE/animations/instructions/animation.js has $PASS_FAIL\n"
+}
+
+function validate_title() {
+	#Check the file for the title information
+	echo "Validating title...."
+	validation_array=(
+	"lib._animation_Title"
+	"_frame_Intro"
+	)
+  fileName="$HOME/$TESTLOCATION/tmp/games/$CID/assets/SOURCE/animations/title/animation.js"
+	while IFS='' read -r line 
+	do
+		if [[ "$line" =~ "${validation_array[0]}" ]];
+		then
+			echo "Found the required title validation object: ${validation_array[0]}"
+			unset validation_array[0]
+		fi
+		
+		if [[ "$line" =~ "${validation_array[1]}" ]];
+		then
+			echo "Found the required title validation object: ${validation_array[1]}"
+			unset validation_array[1]
+		fi
+	done < "$fileName"
+	
+	if [[ "${validation_array[@]}" == "" ]];
+	then
+		PASS_FAIL="PASSED"
+	else
+		PASS_FAIL="FAILED"
+		make_error_log_dir
+		echo "These are the missing elements from $CID/assets/SOURCE/animations/title/animation.js: ${validation_array[@]}" >> $error_log_dir"/error.log"
+		echo "These are the missing elements from $CID/assets/SOURCE/animations/title/animation.js: ${validation_array[@]}"
+	fi
+	echo  -e "VALIDATION FOR $CID/assets/SOURCE/animations/title/animation.js has $PASS_FAIL\n"	
+}
+
+function make_error_log_dir() {
+	if [[ "$inital_run" == true ]];
+	then
+		#do stuff
+		if [[ ! -d $CID"_errors" ]];
+		then
+			#If this is the inital run and there is an existing $CID_errors directory, remove it and remake it.
+			mkdir $error_log_dir
+  		touch $error_log_dir"/error.log"
+  		echo "" >> $error_log_dir"/error.log"
+  		echo "ERRORS FOUND FOR CID: $CID" >> $error_log_dir"/error.log"
+  		echo "________________________________" >> $error_log_dir"/error.log"
+			inital_run=false
+		fi
+	fi
 }
 #accept the CID and the asset directory if needed....maybe not needed for now
 init_validation $CID $ASSETDIR
