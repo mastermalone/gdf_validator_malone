@@ -70,13 +70,13 @@ function validate_affirmation() {
   
   if [[ "$targetLine" == "" ]];
   then
-  	echo "No occurances of $frame_aff* were found in the affirmation/animation.js file."
+  	echo "No occurrences of $frame_aff* were found in the affirmation/animation.js file."
   	#exit with error code 100 which can be mapped to specified string not found in animation.js: $frame_aff
   fi
   
   if [[ "$referenced_obj_line" == "" ]];
   then
-  	echo "No occurances of $required_object* were found in the affiration/animation.js file."
+  	echo "No occurrences of $required_object* were found in the affiration/animation.js file."
   else
   	echo "Found the required $required_object object"
   	required_object_found=true
@@ -137,8 +137,8 @@ function validate_background() {
 	then
 		PASS_FAIL="FAILED"
 		make_error_log_dir
-		echo "No occurances of $required_obj we found in $CID/assets/SOURCE/animations/background/animation.js" >> $error_log_dir"/error.log"
-		echo "No occurances of $required_obj we found in $CID/assets/SOURCE/animations/background/animation.js"
+		echo "No occurrences of $required_obj were found in $CID/assets/SOURCE/animations/background/animation.js" >> $error_log_dir"/error.log"
+		echo "No occurrences of $required_obj were found in $CID/assets/SOURCE/animations/background/animation.js"
 	else
 		PASS_FAIL="PASSED"
 		#exit 102 Map to error message
